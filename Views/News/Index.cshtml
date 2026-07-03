@@ -1,0 +1,91 @@
+﻿@{
+    ViewData["Title"] = "تدفق الأخبار الحية - Smart Edition";
+}
+
+<div class="container-fluid py-4" style="background: linear-gradient(135deg, #0f172a 0%, #1e2937 100%); min-height: 100vh; color: white;">
+    <div class="container">
+        <div class="text-center mb-5">
+            <h1 class="display-4 fw-bold mb-2"> تدفق الأخبار الحية</h1>
+            <p class="lead text-light">ترتيب ذكي حسب اهتماماتك • يتحدث تلقائياً</p>
+            <div class="badge bg-success fs-5 px-4 py-3" id="status">
+                ✅ متصل - Smart Ranking مفعل
+            </div>
+        </div>
+
+        <!-- اختيار الاهتمامات -->
+        <div class="text-center mb-5">
+            <label class="form-label text-light mb-3">اختر اهتماماتك:</label>
+            <div class="d-flex justify-content-center flex-wrap gap-2" id="interestsButtons">
+                <button onclick="toggleInterest(this)" data-interest="سياسة" class="btn btn-light btn-sm active">سياسة</button>
+                <button onclick="toggleInterest(this)" data-interest="تكنولوجيا" class="btn btn-light btn-sm active">تكنولوجيا</button>
+                <button onclick="toggleInterest(this)" data-interest="رياضة" class="btn btn-outline-light btn-sm">رياضة</button>
+                <button onclick="toggleInterest(this)" data-interest="اقتصاد" class="btn btn-outline-light btn-sm">اقتصاد</button>
+                <button onclick="toggleInterest(this)" data-interest="صحة" class="btn btn-outline-light btn-sm">صحة</button>
+            </div>
+        </div>
+
+        <div id="newsContainer" class="row g-4"></div>
+    </div>
+</div>
+
+<script>
+    let currentInterests = ["سياسة", "تكنولوجيا"];
+    let eventSource = null;
+
+    function toggleInterest(btn) {
+        const interest = btn.getAttribute("data-interest");
+
+        if (currentInterests.includes(interest)) {
+            // إزالة الاهتمام (مع الحفاظ على واحد على الأقل)
+            if (currentInterests.length > 1) {
+                currentInterests = currentInterests.filter(i => i !== interest);
+                btn.classList.remove("btn-light", "active");
+                btn.classList.add("btn-outline-light");
+            }
+        } else {
+            // إضافة الاهتمام
+            currentInterests.push(interest);
+            btn.classList.remove("btn-outline-light");
+            btn.classList.add("btn-light", "active");
+        }
+
+        // تحديث الـ Stream
+        connectToStream();
+    }
+
+    function connectToStream() {
+        if (eventSource) eventSource.close();
+
+        const interestsParam = encodeURIComponent(currentInterests.join(','));
+        eventSource = new EventSource(`/news/stream?interests=${interestsParam}`);
+
+        eventSource.onopen = () => {
+            document.getElementById("status").innerHTML = `✅ متصل - Smart Ranking (${currentInterests.join(" | ")})`;
+        };
+
+        eventSource.onmessage = function (event) {
+            const newsList = JSON.parse(event.data);
+            const container = document.getElementById("newsContainer");
+            container.innerHTML = "";
+
+            newsList.forEach(news => {
+                const card = `
+                    <div class="col-lg-6 col-xl-4 mb-4">
+                        <div class="card h-100 shadow-lg border-0 overflow-hidden bg-dark text-white">
+                            <img src="${news.ImageUrl}" class="card-img-top" style="height: 230px; object-fit: cover;">
+                            <div class="card-body d-flex flex-column">
+                                <span class="badge bg-danger mb-2">${news.Category}</span>
+                                <h5 class="card-title fw-bold">${news.Title}</h5>
+                                <p class="card-text flex-grow-1">${news.Summary}</p>
+                                <small class="text-muted">${new Date(news.PublishedAt).toLocaleTimeString('ar-SY')}</small>
+                            </div>
+                        </div>
+                    </div>`;
+                container.innerHTML += card;
+            });
+        };
+    }
+
+    // تشغيل أولي
+    window.onload = connectToStream;
+</script>
